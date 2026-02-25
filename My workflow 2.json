@@ -1,0 +1,451 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2f4e762f-b013-4f11-8d1e-15659e63a045",
+      "name": "Telegram Trigger",
+      "webhookId": "ed0d9d69-dd7a-4166-bf25-9110c961e907",
+      "credentials": {
+        "telegramApi": {
+          "id": "PpkffLLuUz1LZVom",
+          "name": "HeySiri_Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "774025fd-2e15-442c-89a7-af2fef7b1fc8",
+              "leftValue": "={{ $binary.data.mimeType === \"application/pdf\" }}\n",
+              "rightValue": "=application/pdf",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9060e611-5e6c-4adc-9831-1e45a625eb57",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "\"Please send PDF files only. Images or other formats are not supported.\"",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        416,
+        96
+      ],
+      "id": "2ab119a3-4bc8-4a6d-9c8b-1c2d135217aa",
+      "name": "Send a text message",
+      "webhookId": "d538850f-c6da-4955-a941-a1dd03e33105",
+      "credentials": {
+        "telegramApi": {
+          "id": "PpkffLLuUz1LZVom",
+          "name": "HeySiri_Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.document.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        416,
+        -48
+      ],
+      "id": "290c893b-0002-4c57-ab07-76f1a2208512",
+      "name": "Get a file",
+      "webhookId": "6a60e623-41af-46d9-b78c-80e3cc4f6cf3",
+      "credentials": {
+        "telegramApi": {
+          "id": "PpkffLLuUz1LZVom",
+          "name": "HeySiri_Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "22a9d586-57ab-4c74-8bd8-0d3cd4711237",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.text || \"\";\n\nconst maxChunkSize = 12000;\nlet chunks = [];\nlet start = 0;\n\nwhile (start < text.length) {\n  let end = start + maxChunkSize;\n\n  if (end < text.length) {\n    // try to break at sentence end\n    let lastPeriod = text.lastIndexOf(\".\", end);\n    if (lastPeriod > start) end = lastPeriod + 1;\n  }\n\n  chunks.push(text.slice(start, end).trim());\n  start = end;\n}\n\nreturn chunks.map(chunk => ({\n  json: { chunk }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -48
+      ],
+      "id": "c3177528-f98c-4702-b79c-27a4a0710fff",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelName": "models/aqa",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        240
+      ],
+      "id": "398e40ec-4d64-4bcc-98b0-0ff0bb763e4b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "j0l0lByQUdKJn1Jv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1456,
+        -16
+      ],
+      "id": "145d5db9-b134-4fc1-a891-8a19a71ccf22",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Below are summaries of different sections of one PDF.\n\nCombine them into:\n\n• Structured final summary  \n• Clear headings  \n• Bullet points  \n• Key takeaways  \n\nSummaries:\n\n{{ JSON.stringify($json) }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an expert document summarizer.\nCombine multiple section summaries into one final structured summary.\nMake it easy to read.\nAvoid repetition."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1824,
+        -16
+      ],
+      "id": "e9b8f9c4-d1a3-498c-8312-f125383cec83",
+      "name": "Basic LLM Chain2",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "retryOnFail": false,
+      "notesInFlow": false,
+      "disabled": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "54f6f234-8740-448b-bcf7-20b78517fa27",
+              "name": "final_summary",
+              "value": "=This is the FINAL combined summary. Workflow executed successfully.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1616,
+        -16
+      ],
+      "id": "a2c7091d-f255-4090-b3f3-c6e1735a23c4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$node[\"Telegram Trigger\"].json[\"message\"][\"chat\"][\"id\"]}}",
+        "text": "=📄 Your PDF Summary Ready:  {{ $json.text }}  Thank you for using AI summarizer.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2128,
+        -16
+      ],
+      "id": "31826773-4ac1-4026-b304-fad706a4eeb2",
+      "name": "Send a text message1",
+      "webhookId": "6ec66cfc-6580-4698-9c70-0f81b6d049a2",
+      "credentials": {
+        "telegramApi": {
+          "id": "knkiTbmEXAZP63bL",
+          "name": "Shameersbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3cfafc7d-2035-4fdb-b657-e8e4b2f513c2",
+              "name": "text",
+              "value": "This is a mock AI summary generated for testing workflow.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1264,
+        -32
+      ],
+      "id": "4bf1baa0-7340-4a8f-9fa0-15d3525419b5",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Summarize the following section of a PDF:\n\n{{ $json.chunk }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an expert document summarizer.\n\nYour task is to compress the given document section into a concise structured summary.\n\nRules:\n- Use maximum 10 bullet points\n-Maximum 150 words summary only\n- Avoid repetition\n- Keep sentences short\n- Preserve important facts only\n- Do NOT conclude entire document\n- Only summarize this section"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        992,
+        -32
+      ],
+      "id": "9be32d8e-cfe7-4645-8c23-2a44adfc22e7",
+      "name": "Basic LLM Chain",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "retryOnFail": false,
+      "notesInFlow": false,
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        []
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "c8bd6753-af53-4744-90a9-b5adb3d8eeaa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "582b3695ff7bfd085b301e96857526dfcff82dd240562d257abcd7ef20c4bf5e"
+  },
+  "id": "0iwmmX6hDYiZJZrv",
+  "tags": []
+}
